@@ -18,7 +18,6 @@
 #include <iostream>
 #include <cmath>
 #include <sstream>
-#include <cassert>
 using namespace NEAT;
 
 Genome::Genome(int id, std::vector<Trait*> t, std::vector<NNode*> n, std::vector<Gene*> g) {
@@ -1638,14 +1637,8 @@ bool Genome::mutate_add_link(std::vector<Innovation*> &innovs,double &curinnov,i
 
 					//ADDED: CONSIDER connections out of outputs recurrent
 					if (((nodep1->type)==OUTPUT)||
-						((nodep2->type)==OUTPUT)) {
-						// since we are comparing NEAT::nodetype with NEAT::nodeplace,
-						// and nodetype doesn't have the member OUTPUT,
-						// this branch should never be reached
-						assert(false);
+						((nodep2->type)==OUTPUT))
 						recurflag=true;
-					}
-
 
 					//Exit if the network is faulty (contains an infinite loop)
 					//NOTE: A loop doesn't really matter
@@ -1710,15 +1703,8 @@ bool Genome::mutate_add_link(std::vector<Innovation*> &innovs,double &curinnov,i
 
 					//ADDED: CONSIDER connections out of outputs recurrent
 					if (((nodep1->type)==OUTPUT)||
-						((nodep2->type)==OUTPUT)) {
-						// since we are comparing NEAT::nodetype with NEAT::nodeplace,
-						// and nodetype doesn't have the member OUTPUT,
-						// this branch should never be reached
-						assert(false);
+						((nodep2->type)==OUTPUT))
 						recurflag=true;
-					}
-
-
 
 					//Exit if the network is faulty (contains an infinite loop)
 					if (count>thresh) {
