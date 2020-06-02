@@ -23,119 +23,119 @@
 
 namespace NEAT {
 
-    class Genome;
+class Genome;
 
-	// ----------------------------------------------------------------------- 
-	// A NETWORK is a LIST of input NODEs and a LIST of output NODEs           
-	//   The point of the network is to define a single entity which can evolve
-	//   or learn on its own, even though it may be part of a larger framework 
-	class Network {
+// -----------------------------------------------------------------------
+// A NETWORK is a LIST of input NODEs and a LIST of output NODEs
+//   The point of the network is to define a single entity which can evolve
+//   or learn on its own, even though it may be part of a larger framework
+class Network {
 
-		friend class Genome;
+  friend class Genome;
 
-	//protected:
-	public:
+  //protected:
+public:
 
-		int numnodes; // The number of nodes in the net (-1 means not yet counted)
-		int numlinks; //The number of links in the net (-1 means not yet counted)
+  int numnodes; // The number of nodes in the net (-1 means not yet counted)
+  int numlinks; //The number of links in the net (-1 means not yet counted)
 
-		std::vector<NNode*> all_nodes;  // A list of all the nodes
+  std::vector<NNode *> all_nodes;  // A list of all the nodes
 
-		std::vector<NNode*>::iterator input_iter;  // For GUILE network inputting  
+  std::vector<NNode *>::iterator input_iter;  // For GUILE network inputting
 
-		void destroy();  // Kills all nodes and links within
-		void destroy_helper(NNode *curnode,std::vector<NNode*> &seenlist); // helper for above
+  void destroy();  // Kills all nodes and links within
+  void destroy_helper(NNode *curnode, std::vector<NNode *> &seenlist); // helper for above
 
-		void nodecounthelper(NNode *curnode,int &counter,std::vector<NNode*> &seenlist);
-		void linkcounthelper(NNode *curnode,int &counter,std::vector<NNode*> &seenlist);
+  void nodecounthelper(NNode *curnode, int &counter, std::vector<NNode *> &seenlist);
+  void linkcounthelper(NNode *curnode, int &counter, std::vector<NNode *> &seenlist);
 
-	public:
+public:
 
-		Genome *genotype;  // Allows Network to be matched with its Genome
+  Genome *genotype;  // Allows Network to be matched with its Genome
 
-		char *name; // Every Network or subNetwork can have a name
-		std::vector<NNode*> inputs;  // NNodes that input into the network
-		std::vector<NNode*> outputs; // Values output by the network
+  char *name; // Every Network or subNetwork can have a name
+  std::vector<NNode *> inputs;  // NNodes that input into the network
+  std::vector<NNode *> outputs; // Values output by the network
 
-		int net_id; // Allow for a network id
+  int net_id; // Allow for a network id
 
-		double maxweight; // Maximum weight in network for adaptation purposes
+  double maxweight; // Maximum weight in network for adaptation purposes
 
-		bool adaptable; // Tells whether network can adapt or not
+  bool adaptable; // Tells whether network can adapt or not
 
-		// This constructor allows the input and output lists to be supplied
-		// Defaults to not using adaptation
-		Network(std::vector<NNode*> in,std::vector<NNode*> out,std::vector<NNode*> all,int netid);
+  // This constructor allows the input and output lists to be supplied
+  // Defaults to not using adaptation
+  Network(std::vector<NNode *> in, std::vector<NNode *> out, std::vector<NNode *> all, int netid);
 
-		//Same as previous constructor except the adaptibility can be set true or false with adaptval
-		Network(std::vector<NNode*> in,std::vector<NNode*> out,std::vector<NNode*> all,int netid, bool adaptval);
+  //Same as previous constructor except the adaptibility can be set true or false with adaptval
+  Network(std::vector<NNode *> in, std::vector<NNode *> out, std::vector<NNode *> all, int netid, bool adaptval);
 
-		// This constructs a net with empty input and output lists
-		Network(int netid);
+  // This constructs a net with empty input and output lists
+  Network(int netid);
 
-		//Same as previous constructor except the adaptibility can be set true or false with adaptval
-		Network(int netid, bool adaptval);
+  //Same as previous constructor except the adaptibility can be set true or false with adaptval
+  Network(int netid, bool adaptval);
 
-		// Copy Constructor
-		Network(const Network& network);
+  // Copy Constructor
+  Network(const Network &network);
 
-		~Network();
+  ~Network();
 
-		// Puts the network back into an inactive state
-		void flush();
-		
-		// Verify flushedness for debugging
-		void flush_check();
+  // Puts the network back into an inactive state
+  void flush();
 
-		// Activates the net such that all outputs are active
-		bool activate();
+  // Verify flushedness for debugging
+  void flush_check();
 
-		// Prints the values of its outputs
-		void show_activation();
+  // Activates the net such that all outputs are active
+  bool activate();
 
-		void show_input();
+  // Prints the values of its outputs
+  void show_activation();
 
-		// Add a new input node
-		void add_input(NNode*);
+  void show_input();
 
-		// Add a new output node
-		void add_output(NNode*);
+  // Add a new input node
+  void add_input(NNode *);
 
-		// Takes an array of sensor values and loads it into SENSOR inputs ONLY
-		void load_sensors(double*);
-		void load_sensors(const std::vector<float> &sensvals);
+  // Add a new output node
+  void add_output(NNode *);
 
-		// Takes and array of output activations and OVERRIDES the outputs' actual 
-		// activations with these values (for adaptation)
-		void override_outputs(double*);
+  // Takes an array of sensor values and loads it into SENSOR inputs ONLY
+  void load_sensors(double *);
+  void load_sensors(const std::vector<float> &sensvals);
 
-		// Name the network
-		void give_name(char*);
+  // Takes and array of output activations and OVERRIDES the outputs' actual
+  // activations with these values (for adaptation)
+  void override_outputs(double *);
 
-		// Counts the number of nodes in the net if not yet counted
-		int nodecount();
+  // Name the network
+  void give_name(char *);
 
-		// Counts the number of links in the net if not yet counted
-		int linkcount();
+  // Counts the number of nodes in the net if not yet counted
+  int nodecount();
 
-		// This checks a POTENTIAL link between a potential in_node
-		// and potential out_node to see if it must be recurrent 
-		// Use count and thresh to jump out in the case of an infinite loop 
-		bool is_recur(NNode *potin_node,NNode *potout_node,int &count,int thresh); 
+  // Counts the number of links in the net if not yet counted
+  int linkcount();
 
-		// Some functions to help GUILE input into Networks   
-		int input_start();
-		int load_in(double d);
+  // This checks a POTENTIAL link between a potential in_node
+  // and potential out_node to see if it must be recurrent
+  // Use count and thresh to jump out in the case of an infinite loop
+  bool is_recur(NNode *potin_node, NNode *potout_node, int &count, int thresh);
 
-		// If all output are not active then return true
-		bool outputsoff();
+  // Some functions to help GUILE input into Networks
+  int input_start();
+  int load_in(double d);
 
-		// Just print connections weights with carriage returns
-		void print_links_tofile(char *filename);
+  // If all output are not active then return true
+  bool outputsoff();
 
-		int max_depth();
+  // Just print connections weights with carriage returns
+  void print_links_tofile(char *filename);
 
-	};
+  int max_depth();
+
+};
 
 } // namespace NEAT
 
