@@ -20,7 +20,7 @@
 
 //Perform evolution on XOR, for gens generations
 Population *xor_test(int gens) {
-  Population *pop = 0;
+  Population *pop = nullptr;
   Genome *start_genome;
   char curword[20];
   int id;
@@ -282,7 +282,7 @@ int xor_epoch(Population *pop, int generation, char *filename, int &winnernum, i
 
 //Perform evolution on single pole balacing, for gens generations
 Population *pole1_test(int gens) {
-  Population *pop = 0;
+  Population *pop = nullptr;
   Genome *start_genome;
   char curword[20];
   int id;
