@@ -67,10 +67,12 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  //Load in the params
-  NEAT::load_neat_params(argv[1], true);
-
-  cout << "loaded" << endl;
+  // Load in the params
+  bool isLoadSuccess = NEAT::load_neat_params(argv[1], true);
+  if (!isLoadSuccess) {
+    cerr << "Failed to load parameter file " << argv[1] << endl;
+    return -1;
+  }
 
   /*
   //Test a genome file on pole balancing
