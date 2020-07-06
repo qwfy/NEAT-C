@@ -588,7 +588,7 @@ void cart_pole(int action, float *x, float *x_dot, float *theta, float *theta_do
 //If velocity is false, then velocity information will be withheld from the 
 //network population (non-Markov)
 Population *pole2_test(int gens, int velocity) {
-  Population *pop = 0;
+  Population *pop = nullptr;
   Genome *start_genome;
   char curword[20];
   int id;
