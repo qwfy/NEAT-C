@@ -32,7 +32,7 @@ Organism::Organism(double fit, Genome *g, int gen, const char *md) {
   super_champ_offspring = 0;
 
   // If md is null, then we don't have metadata, otherwise we do have metadata so copy it over
-  if (md==0) {
+  if (md==nullptr) {
     strcpy(metadata, "");
   } else {
     strncpy(metadata, md, 128);
