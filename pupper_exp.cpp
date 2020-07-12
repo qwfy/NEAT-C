@@ -6,8 +6,9 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include <cmath>
 
-#define VIS_EACH
+// #define VIS_EACH
 
 Population *pupper_simulate(int gens) {
   Population *pop = nullptr;
@@ -263,10 +264,10 @@ tuple<bool, double> mujoco_evaluate(Network *net) {
       << endl;
     int i;
     bool new_line_added = false;
-    for (i = 1; i < sensors.size(); i++) {
+    for (i = 0; i < sensors.size(); i++) {
       new_line_added = false;
       cout << sensors[i] << "\t";
-      if (i%6 == 0) {
+      if (i > 0 && i%6 == 0) {
         cout << endl;
         new_line_added = true;
       }
@@ -312,8 +313,9 @@ tuple<bool, double> mujoco_evaluate(Network *net) {
     cur_step += 1;
   }
 
-  // TODO @incomplete: get distance as fitness from mujoco
-  // fitness = ...
+  // TODO @incomplete: add straightness, speed and orientation to fitness
+  fitness = pow(mj_data->qpos[0], 2) + pow(mj_data->qpos[1], 2);
+  fitness = sqrt(fitness);
 
   // free mj_model and data, deactivate
   mj_deleteData(mj_data);
