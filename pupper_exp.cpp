@@ -5,31 +5,32 @@
 Population *pupper_simulate(int gens) {
   Population *pop = nullptr;
   Genome *start_genome;
-  char curword[20];
+  char _param_name[20];
   int id;
 
-  ostringstream *fnamebuf;
+  ostringstream *file_name_buf;
   int gen;
 
-  int evals[NEAT::num_runs];  //Hold records for each run
+  // Hold records for each run
+  int evals[NEAT::num_runs];
   int genes[NEAT::num_runs];
   int nodes[NEAT::num_runs];
-  int winnernum;
-  int winnergenes;
-  int winnernodes;
-  //For averaging
-  int totalevals = 0;
-  int totalgenes = 0;
-  int totalnodes = 0;
-  int expcount;
-  int samples;  //For averaging
+  int winner_num;
+  int winner_genes;
+  int winner_nodes;
+  // For averaging
+  int total_evals = 0;
+  int total_genes = 0;
+  int total_nodes = 0;
+  int exp_count;
+  int samples;
 
   memset(evals, 0, NEAT::num_runs*sizeof(int));
   memset(genes, 0, NEAT::num_runs*sizeof(int));
   memset(nodes, 0, NEAT::num_runs*sizeof(int));
 
-  ifstream iFile("pupper_start_genes.txt", ios::in);
-  if (!iFile.is_open()) {
+  ifstream input_file("pupper_start_genes.txt", ios::in);
+  if (!input_file.is_open()) {
     cerr << "Failed to open start genes" << endl;
     return nullptr;
   }
@@ -37,15 +38,14 @@ Population *pupper_simulate(int gens) {
   cout << "START PUPPER TEST" << endl;
 
   cout << "Reading in the start genome" << endl;
-  //Read in the start Genome
-  iFile >> curword;
-  iFile >> id;
+  input_file >> _param_name;
+  input_file >> id;
   cout << "Reading in Genome id " << id << endl;
-  start_genome = new Genome(id, iFile);
-  iFile.close();
+  start_genome = new Genome(id, input_file);
+  input_file.close();
 
-  for (expcount = 0; expcount < NEAT::num_runs; expcount++) {
-    //Spawn the Population
+  for (exp_count = 0; exp_count < NEAT::num_runs; exp_count++) {
+    // Spawn the Population
     cout << "Spawning Population off Genome2" << endl;
 
     pop = new Population(start_genome, NEAT::pop_size);
@@ -57,125 +57,118 @@ Population *pupper_simulate(int gens) {
       cout << "Epoch " << gen << endl;
 
       //This is how to make a custom filename
-      fnamebuf = new ostringstream();
-      (*fnamebuf) << "gen_" << gen << ends;  //needs end marker
+      file_name_buf = new ostringstream();
+      (*file_name_buf) << "gen_" << gen << ends;  //needs end marker
 
 #ifndef NO_SCREEN_OUT
-      cout << "name of fname: " << fnamebuf->str() << endl;
+      cout << "name of fname: " << file_name_buf->str() << endl;
 #endif
 
       char temp[50];
       sprintf(temp, "gen_%d", gen);
 
       //Check for success
-      if (pupper_epoch(pop, gen, temp, winnernum, winnergenes, winnernodes)) {
-        //	if (pupper_epoch(pop,gen,fnamebuf->str(),winnernum,winnergenes,winnernodes)) {
+      if (pupper_epoch(pop, gen, temp, winner_num, winner_genes, winner_nodes)) {
+        //	if (pupper_epoch(pop,gen,file_name_buf->str(),winner_num,winner_genes,winner_nodes)) {
         //Collect Stats on end of experiment
-        evals[expcount] = NEAT::pop_size*(gen - 1) + winnernum;
-        genes[expcount] = winnergenes;
-        nodes[expcount] = winnernodes;
+        evals[exp_count] = NEAT::pop_size*(gen - 1) + winner_num;
+        genes[exp_count] = winner_genes;
+        nodes[exp_count] = winner_nodes;
         gen = gens;
-
       }
 
       //Clear output filename
-      fnamebuf->clear();
-      delete fnamebuf;
-
+      file_name_buf->clear();
+      delete file_name_buf;
     }
 
-    if (expcount < NEAT::num_runs - 1)
+    if (exp_count < NEAT::num_runs - 1) {
       delete pop;
-
+    }
   }
 
-  //Average and print stats
+  // Average and print stats
   cout << "Nodes: " << endl;
-  for (expcount = 0; expcount < NEAT::num_runs; expcount++) {
-    cout << nodes[expcount] << endl;
-    totalnodes += nodes[expcount];
+  for (exp_count = 0; exp_count < NEAT::num_runs; exp_count++) {
+    cout << nodes[exp_count] << endl;
+    total_nodes += nodes[exp_count];
   }
 
   cout << "Genes: " << endl;
-  for (expcount = 0; expcount < NEAT::num_runs; expcount++) {
-    cout << genes[expcount] << endl;
-    totalgenes += genes[expcount];
+  for (exp_count = 0; exp_count < NEAT::num_runs; exp_count++) {
+    cout << genes[exp_count] << endl;
+    total_genes += genes[exp_count];
   }
 
   cout << "Evals " << endl;
   samples = 0;
-  for (expcount = 0; expcount < NEAT::num_runs; expcount++) {
-    cout << evals[expcount] << endl;
-    if (evals[expcount] > 0) {
-      totalevals += evals[expcount];
+  for (exp_count = 0; exp_count < NEAT::num_runs; exp_count++) {
+    cout << evals[exp_count] << endl;
+    if (evals[exp_count] > 0) {
+      total_evals += evals[exp_count];
       samples++;
     }
   }
 
   cout << "Failures: " << (NEAT::num_runs - samples) << " out of " << NEAT::num_runs << " runs" << endl;
-  cout << "Average Nodes: " << (samples > 0 ? (double) totalnodes/samples : 0) << endl;
-  cout << "Average Genes: " << (samples > 0 ? (double) totalgenes/samples : 0) << endl;
-  cout << "Average Evals: " << (samples > 0 ? (double) totalevals/samples : 0) << endl;
+  cout << "Average Nodes: " << (samples > 0 ? (double) total_nodes/samples : 0) << endl;
+  cout << "Average Genes: " << (samples > 0 ? (double) total_genes/samples : 0) << endl;
+  cout << "Average Evals: " << (samples > 0 ? (double) total_evals/samples : 0) << endl;
 
   return pop;
 
 }
 
-int pupper_epoch(Population *pop, int generation, char *filename, int &winnernum, int &winnergenes, int &winnernodes) {
-  vector<Organism *>::iterator curorg;
-  vector<Species *>::iterator curspecies;
-  //char cfilename[100];
-  //strncpy( cfilename, filename.c_str(), 100 );
-
-  //ofstream cfilename(filename.c_str());
+int pupper_epoch(Population *pop, int generation, char *filename, int &winner_num, int &winner_genes, int &winner_nodes) {
+  vector<Organism *>::iterator cur_org;
+  vector<Species *>::iterator cur_species;
 
   bool win = false;
 
-
-  //Evaluate each organism on a test
-  for (curorg = (pop->organisms).begin(); curorg!=(pop->organisms).end(); ++curorg) {
-    if (pupper_evaluate(*curorg)) {
+  // Evaluate each organism on a test
+  for (cur_org = (pop->organisms).begin(); cur_org!=(pop->organisms).end(); ++cur_org) {
+    if (pupper_evaluate(*cur_org)) {
       win = true;
-      winnernum = (*curorg)->gnome->genome_id;
-      winnergenes = (*curorg)->gnome->extrons();
-      winnernodes = ((*curorg)->gnome->nodes).size();
-      if (winnernodes==5) {
-        //You could dump out optimal genomes here if desired
-        //(*curorg)->gnome->print_to_filename("pupper_optimal");
-        //cout<<"DUMPED OPTIMAL"<<endl;
+      winner_num = (*cur_org)->gnome->genome_id;
+      winner_genes = (*cur_org)->gnome->extrons();
+      winner_nodes = ((*cur_org)->gnome->nodes).size();
+      if (winner_nodes==5) {
+        // You could dump out optimal genomes here if desired
+        // (*cur_org)->gnome->print_to_filename("pupper_optimal");
+        // cout<<"DUMPED OPTIMAL"<<endl;
       }
     }
   }
 
-  //Average and max their fitnesses for dumping to file and snapshot
-  for (curspecies = (pop->species).begin(); curspecies!=(pop->species).end(); ++curspecies) {
+  // Average and max their fitnesses for dumping to file and snapshot
+  for (cur_species = (pop->species).begin(); cur_species!=(pop->species).end(); ++cur_species) {
 
     //This experiment control routine issues commands to collect ave
     //and max fitness, as opposed to having the snapshot do it,
     //because this allows flexibility in terms of what time
     //to observe fitnesses at
 
-    (*curspecies)->compute_average_fitness();
-    (*curspecies)->compute_max_fitness();
+    (*cur_species)->compute_average_fitness();
+    (*cur_species)->compute_max_fitness();
   }
 
-  //Take a snapshot of the population, so that it can be
+  // Take a snapshot of the population, so that it can be
   //visualized later on
   //if ((generation%1)==0)
   //  pop->snapshot();
 
-  //Only print to file every print_every generations
+  // Only print to file every print_every generations
   if (win ||
       ((generation%(NEAT::print_every))==0))
     pop->print_to_file_by_species(filename);
 
   if (win) {
-    for (curorg = (pop->organisms).begin(); curorg!=(pop->organisms).end(); ++curorg) {
-      if ((*curorg)->winner) {
-        cout << "WINNER IS #" << ((*curorg)->gnome)->genome_id << endl;
+    for (cur_org = (pop->organisms).begin(); cur_org!=(pop->organisms).end(); ++cur_org) {
+      if ((*cur_org)->winner) {
+        cout << "WINNER IS #" << ((*cur_org)->gnome)->genome_id << endl;
         //Prints the winner to file
         //IMPORTANT: This causes generational file output!
-        print_Genome_tofile((*curorg)->gnome, "pupper_winner");
+        print_Genome_tofile((*cur_org)->gnome, "pupper_winner");
       }
     }
 
@@ -195,10 +188,10 @@ bool pupper_evaluate(Organism *org) {
   double out[4]; //The four outputs
   double this_out; //The current output
   int count;
-  double errorsum;
+  double error_sum;
 
   bool success;  //Check for successful activation
-  int numnodes;  /* Used to figure out how many nodes
+  int num_nodes;  /* Used to figure out how many nodes
 		    should be visited during activation */
 
   int net_depth; //The max depth of the network to be activated
@@ -212,7 +205,7 @@ bool pupper_evaluate(Organism *org) {
                      {1.0, 1.0, 1.0}};
 
   net = org->net;
-  numnodes = ((org->gnome)->nodes).size();
+  num_nodes = ((org->gnome)->nodes).size();
 
   net_depth = net->max_depth();
 
@@ -240,23 +233,23 @@ bool pupper_evaluate(Organism *org) {
   }
 
   if (success) {
-    errorsum = (fabs(out[0]) + fabs(1.0 - out[1]) + fabs(1.0 - out[2]) + fabs(out[3]));
-    org->fitness = pow((4.0 - errorsum), 2);
-    org->error = errorsum;
+    error_sum = (fabs(out[0]) + fabs(1.0 - out[1]) + fabs(1.0 - out[2]) + fabs(out[3]));
+    org->fitness = pow((4.0 - error_sum), 2);
+    org->error = error_sum;
   } else {
     //The network is flawed (shouldnt happen)
-    errorsum = 999.0;
+    error_sum = 999.0;
     org->fitness = 0.001;
   }
 
 #ifndef NO_SCREEN_OUT
-  cout << "Org " << (org->gnome)->genome_id << "                                     error: " << errorsum << "  ["
+  cout << "Org " << (org->gnome)->genome_id << "                                     error: " << error_sum << "  ["
        << out[0] << " " << out[1] << " " << out[2] << " " << out[3] << "]" << endl;
   cout << "Org " << (org->gnome)->genome_id << "                                     fitness: " << org->fitness << endl;
 #endif
 
-  //  if (errorsum<0.05) { 
-  //if (errorsum<0.2) {
+  //  if (error_sum<0.05) {
+  //if (error_sum<0.2) {
   if ((out[0] < 0.5) && (out[1] >= 0.5) && (out[2] >= 0.5) && (out[3] < 0.5)) {
     org->winner = true;
     return true;

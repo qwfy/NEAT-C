@@ -137,7 +137,7 @@ bool NEAT::load_neat_params(const char *filename, bool output) {
   std::string _paramName = "";
 
   if (output)
-    printf("Loading NEAT parameters from: %s", filename);
+    printf("Loading NEAT parameters from: %s\n", filename);
 
   paramFile >> _paramName;
   paramFile >> NEAT::trait_param_mut_prob;

@@ -13,6 +13,6 @@ using namespace NEAT;
 
 Population *pupper_simulate(int gens);
 bool pupper_evaluate(Organism *org);
-int pupper_epoch(Population *pop, int generation, char *filename, int &winnernum, int &winnergenes, int &winnernodes);
+int pupper_epoch(Population *pop, int generation, char *filename, int &winner_num, int &winner_genes, int &winner_nodes);
 
 #endif
