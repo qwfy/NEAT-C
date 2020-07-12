@@ -392,10 +392,10 @@ void Network::load_sensors(double *sensvals) {
   }
 }
 
-void Network::load_sensors(const std::vector<float> &sensvals) {
+void Network::load_sensors(const std::vector<double> &sensvals) {
   //int counter=0;  //counter to move through array
   std::vector<NNode *>::iterator sensPtr;
-  std::vector<float>::const_iterator valPtr;
+  std::vector<double>::const_iterator valPtr;
 
   for (valPtr = sensvals.begin(), sensPtr = inputs.begin(); sensPtr!=inputs.end() && valPtr!=sensvals.end();
        ++sensPtr, ++valPtr) {

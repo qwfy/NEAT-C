@@ -41,16 +41,18 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  cout << "Please choose an experiment:" << endl;
-  cout << "1 - 1-pole balancing" << endl;
-  cout << "2 - 2-pole balancing, velocity info provided" << endl;
-  cout << "3 - 2-pole balancing, no velocity info provided (non-markov)" << endl;
-  cout << "4 - XOR" << endl;
-  cout << "5 - Pupper" << endl;
-  cout << "Number: ";
+  // cout << "Please choose an experiment:" << endl;
+  // cout << "1 - 1-pole balancing" << endl;
+  // cout << "2 - 2-pole balancing, velocity info provided" << endl;
+  // cout << "3 - 2-pole balancing, no velocity info provided (non-markov)" << endl;
+  // cout << "4 - XOR" << endl;
+  // cout << "5 - Pupper" << endl;
+  // cout << "Number: ";
+  //
+  // int choice;
+  // cin >> choice;
 
-  int choice;
-  cin >> choice;
+  int choice = 5;
 
   switch (choice) {
   case 1:

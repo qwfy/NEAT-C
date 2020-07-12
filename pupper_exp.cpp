@@ -1,7 +1,10 @@
 #include "experiments.h"
 #include "pupper_exp.h"
+#include "mujoco.h"
 #include <cstring>
 #include <string>
+#include <tuple>
+#include <vector>
 
 Population *pupper_simulate(int gens) {
   Population *pop = nullptr;
@@ -19,11 +22,12 @@ Population *pupper_simulate(int gens) {
   int winner_num;
   int winner_genes;
   int winner_nodes;
+
   // For averaging
   int total_evals = 0;
   int total_genes = 0;
   int total_nodes = 0;
-  int exp_count;
+  int run_count;
   int samples;
 
   memset(evals, 0, NEAT::num_runs*sizeof(int));
@@ -36,8 +40,6 @@ Population *pupper_simulate(int gens) {
     return nullptr;
   }
 
-  cout << "START PUPPER TEST" << endl;
-
   cout << "Reading in the start genome" << endl;
   input_file >> _param_name;
   input_file >> id;
@@ -45,9 +47,9 @@ Population *pupper_simulate(int gens) {
   start_genome = new Genome(id, input_file);
   input_file.close();
 
-  for (exp_count = 0; exp_count < NEAT::num_runs; exp_count++) {
+  for (run_count = 0; run_count < NEAT::num_runs; run_count++) {
     // Spawn the Population
-    cout << "Spawning Population off Genome2" << endl;
+    cout << "Spawning Population off Genome" << endl;
 
     pop = new Population(start_genome, NEAT::pop_size);
 
@@ -55,57 +57,50 @@ Population *pupper_simulate(int gens) {
     pop->verify();
 
     for (gen = 1; gen <= gens; gen++) {
-      cout << "Epoch " << gen << endl;
+      cout << "Generation " << gen << endl;
 
-      // This is how to make a custom filename
       file_name_buf = new ostringstream();
-      (*file_name_buf) << "pupper_out/gen_" << gen << ends;  //needs end marker
-
-#ifndef NO_SCREEN_OUT
-      cout << "name of fname: " << file_name_buf->str() << endl;
-#endif
-
+      (*file_name_buf) << "pupper_out/gen_" << gen << ends;\
       string filename = file_name_buf->str();
 
-      //Check for success
-      if (pupper_epoch(pop, gen, filename.c_str(), winner_num, winner_genes, winner_nodes)) {
-        //	if (pupper_epoch(pop,gen,file_name_buf->str(),winner_num,winner_genes,winner_nodes)) {
-        //Collect Stats on end of experiment
-        evals[exp_count] = NEAT::pop_size*(gen - 1) + winner_num;
-        genes[exp_count] = winner_genes;
-        nodes[exp_count] = winner_nodes;
+      // Check for success
+      if (pupper_generation(pop, gen, filename.c_str(), winner_num, winner_genes, winner_nodes)) {
+        // Collect Stats on end of experiment
+        evals[run_count] = NEAT::pop_size*(gen - 1) + winner_num;
+        genes[run_count] = winner_genes;
+        nodes[run_count] = winner_nodes;
         gen = gens;
       }
 
-      //Clear output filename
+      // Clear output filename
       file_name_buf->clear();
       delete file_name_buf;
     }
 
-    if (exp_count < NEAT::num_runs - 1) {
+    if (run_count < NEAT::num_runs - 1) {
       delete pop;
     }
   }
 
   // Average and print stats
   cout << "Nodes: " << endl;
-  for (exp_count = 0; exp_count < NEAT::num_runs; exp_count++) {
-    cout << nodes[exp_count] << endl;
-    total_nodes += nodes[exp_count];
+  for (run_count = 0; run_count < NEAT::num_runs; run_count++) {
+    cout << nodes[run_count] << endl;
+    total_nodes += nodes[run_count];
   }
 
   cout << "Genes: " << endl;
-  for (exp_count = 0; exp_count < NEAT::num_runs; exp_count++) {
-    cout << genes[exp_count] << endl;
-    total_genes += genes[exp_count];
+  for (run_count = 0; run_count < NEAT::num_runs; run_count++) {
+    cout << genes[run_count] << endl;
+    total_genes += genes[run_count];
   }
 
   cout << "Evals " << endl;
   samples = 0;
-  for (exp_count = 0; exp_count < NEAT::num_runs; exp_count++) {
-    cout << evals[exp_count] << endl;
-    if (evals[exp_count] > 0) {
-      total_evals += evals[exp_count];
+  for (run_count = 0; run_count < NEAT::num_runs; run_count++) {
+    cout << evals[run_count] << endl;
+    if (evals[run_count] > 0) {
+      total_evals += evals[run_count];
       samples++;
     }
   }
@@ -116,10 +111,10 @@ Population *pupper_simulate(int gens) {
   cout << "Average Evals: " << (samples > 0 ? (double) total_evals/samples : 0) << endl;
 
   return pop;
-
 }
 
-int pupper_epoch(Population *pop, int generation, const char *filename, int &winner_num, int &winner_genes, int &winner_nodes) {
+// Step a generation
+int pupper_generation(Population *pop, int generation, const char *filename, int &winner_num, int &winner_genes, int &winner_nodes) {
   vector<Organism *>::iterator cur_org;
   vector<Species *>::iterator cur_species;
 
@@ -133,9 +128,7 @@ int pupper_epoch(Population *pop, int generation, const char *filename, int &win
       winner_genes = (*cur_org)->gnome->extrons();
       winner_nodes = ((*cur_org)->gnome->nodes).size();
       if (winner_nodes==5) {
-        // You could dump out optimal genomes here if desired
-        // (*cur_org)->gnome->print_to_filename("pupper_optimal");
-        // cout<<"DUMPED OPTIMAL"<<endl;
+        (*cur_org)->gnome->print_to_filename("pupper_out/optimal");
       }
     }
   }
@@ -143,32 +136,33 @@ int pupper_epoch(Population *pop, int generation, const char *filename, int &win
   // Average and max their fitnesses for dumping to file and snapshot
   for (cur_species = (pop->species).begin(); cur_species!=(pop->species).end(); ++cur_species) {
 
-    //This experiment control routine issues commands to collect ave
-    //and max fitness, as opposed to having the snapshot do it,
-    //because this allows flexibility in terms of what time
-    //to observe fitnesses at
+    // This experiment control routine issues commands to collect ave
+    // and max fitness, as opposed to having the snapshot do it,
+    // because this allows flexibility in terms of what time
+    // to observe fitnesses at
 
     (*cur_species)->compute_average_fitness();
     (*cur_species)->compute_max_fitness();
   }
 
   // Take a snapshot of the population, so that it can be
-  //visualized later on
-  //if ((generation%1)==0)
-  //  pop->snapshot();
+  // visualized later on
+  // if ((generation%1)==0) {
+  //   pop->snapshot();
+  // }
+
 
   // Only print to file every print_every generations
   if (win ||
-      ((generation%(NEAT::print_every))==0))
+      ((generation%(NEAT::print_every))==0)) {
     pop->print_to_file_by_species(filename);
+  }
 
   if (win) {
     for (cur_org = (pop->organisms).begin(); cur_org!=(pop->organisms).end(); ++cur_org) {
       if ((*cur_org)->winner) {
         cout << "WINNER IS #" << ((*cur_org)->gnome)->genome_id << endl;
-        //Prints the winner to file
-        //IMPORTANT: This causes generational file output!
-        print_Genome_tofile((*cur_org)->gnome, "pupper_winner");
+        print_Genome_tofile((*cur_org)->gnome, "pupper_out/winner");
       }
     }
 
@@ -183,79 +177,179 @@ int pupper_epoch(Population *pop, int generation, const char *filename, int &win
 
 }
 
-bool pupper_evaluate(Organism *org) {
-  Network *net;
-  double out[4]; //The four outputs
-  double this_out; //The current output
-  int count;
-  double error_sum;
 
-  bool success;  //Check for successful activation
-  int num_nodes;  /* Used to figure out how many nodes
-		    should be visited during activation */
+tuple<bool, double> mujoco_evaluate(Network *net) {
+  // negative
+  float fitness = 0.0;
 
-  int net_depth; //The max depth of the network to be activated
-  int relax; //Activates until relaxation
+  int error_size = 1024;
+  char error[error_size];
 
-  //The four possible input combinations to xor
-  //The first number is for biasing
-  double in[4][3] = {{1.0, 0.0, 0.0},
-                     {1.0, 0.0, 1.0},
-                     {1.0, 1.0, 0.0},
-                     {1.0, 1.0, 1.0}};
+  string mj_license_path = "/home/incomplete/.mujoco/mjkey.txt";
+  string mj_model_path = "/home/incomplete/ai/pupper/StanfordQuadruped/sim/pupper_mujoco.xml";
+  int max_simulation_steps = 10000;
 
-  net = org->net;
-  num_nodes = ((org->gnome)->nodes).size();
+  mjModel* mj_model;
+  mjData* mj_data;
 
-  net_depth = net->max_depth();
+  // activate MuJoCo
+  mj_activate(mj_license_path.c_str());
 
-  //TEST CODE: REMOVE
-  //cout<<"ACTIVATING: "<<org->gnome<<endl;
-  //cout<<"DEPTH: "<<net_depth<<endl;
-
-  //Load and activate the network on each input
-  for (count = 0; count <= 3; count++) {
-    net->load_sensors(in[count]);
-
-    //Relax net and get output
-    success = net->activate();
-
-    //use depth to ensure relaxation
-    for (relax = 0; relax <= net_depth; relax++) {
-      success = net->activate();
-      this_out = (*(net->outputs.begin()))->activation;
-    }
-
-    out[count] = (*(net->outputs.begin()))->activation;
-
-    net->flush();
-
+  // load model from file and check for errors
+  mj_model = mj_loadXML(mj_model_path.c_str(), nullptr, error, error_size);
+  if (!mj_model) {
+    cerr << "Failed to load mujoco mj_model " << mj_model_path << ": " << error << endl;
+    return tuple(false, fitness);
   }
 
-  if (success) {
-    error_sum = (fabs(out[0]) + fabs(1.0 - out[1]) + fabs(1.0 - out[2]) + fabs(out[3]));
-    org->fitness = pow((4.0 - error_sum), 2);
-    org->error = error_sum;
+  // make data corresponding to mj_model
+  mj_data = mj_makeData(mj_model);
+
+  // run the simulation
+  int cur_step = 0;
+  while (cur_step < max_simulation_steps) {
+
+    // collect sensor data and pass them to the network
+    vector<double> sensors {};
+    // position
+    for (int i = 0; i < mj_model->nq; i++) {
+      sensors.push_back(mj_data->qpos[i]);
+    }
+    // velocity
+    for (int i = 0; i < mj_model->nv; i++) {
+      sensors.push_back(mj_data->qvel[i]);
+    }
+    // actuator activation
+    for (int i = 0; i < mj_model->na; i++) {
+      sensors.push_back(mj_data->act[i]);
+    }
+    net->load_sensors(sensors);
+
+    // debug
+    cout << "sensor data:"
+      << " nq=" << mj_model->nq
+      << " nv=" << mj_model->nv
+      << " na=" << mj_model->na
+      << endl;
+    int i;
+    bool new_line_added = false;
+    for (i = 1; i < sensors.size(); i++) {
+      new_line_added = false;
+      cout << sensors[i] << "\t";
+      if (i%6 == 0) {
+        cout << endl;
+        new_line_added = true;
+      }
+    }
+    if (!new_line_added) {
+      cout << endl;
+    }
+
+    // Activate the net
+    // If it loops, exit returning only fitness of 0
+    if (!(net->activate())) {
+      return tuple(true, 0.0);
+    }
+
+    for (int i = 0; i < net->outputs.size(); i++) {
+      mj_data->ctrl[i] = net->outputs[i]->activation;
+    }
+
+    // TODO @incomplete: bounds check
+    // if it fails, stop it now
+    // if (outsideBounds()) {
+    //   break;
+    // }
+
+    mj_step(mj_model, mj_data);
+
+
+    cur_step += 1;
+  }
+
+  // TODO @incomplete: get distance as fitness from mujoco
+  // fitness = ...
+
+  // free mj_model and data, deactivate
+  mj_deleteData(mj_data);
+  mj_deleteModel(mj_model);
+  mj_deactivate();
+
+  return tuple(true, fitness);
+}
+
+bool pupper_evaluate(Organism *org) {
+  Network *net = org->net;
+
+  // evaluate with mujoco
+  auto eval_result = mujoco_evaluate(net);
+  if (get<0>(eval_result)) {
+    org->fitness = get<1>(eval_result);
   } else {
-    //The network is flawed (shouldnt happen)
-    error_sum = 999.0;
-    org->fitness = 0.001;
+    exit(EXIT_FAILURE);
   }
 
 #ifndef NO_SCREEN_OUT
-  cout << "Org " << (org->gnome)->genome_id << "                                     error: " << error_sum << "  ["
-       << out[0] << " " << out[1] << " " << out[2] << " " << out[3] << "]" << endl;
-  cout << "Org " << (org->gnome)->genome_id << "                                     fitness: " << org->fitness << endl;
-#endif
-
-  //  if (error_sum<0.05) {
-  //if (error_sum<0.2) {
-  if ((out[0] < 0.5) && (out[1] >= 0.5) && (out[2] >= 0.5) && (out[3] < 0.5)) {
-    org->winner = true;
-    return true;
-  } else {
-    org->winner = false;
-    return false;
+  if (org->pop_champ_child) {
+    cout << " <<DUPLICATE OF CHAMPION>> ";
   }
 
+  // Output to screen
+  cout << "Org " << (org->gnome)->genome_id << " fitness: " << org->fitness;
+  cout << " (" << (org->gnome)->genes.size();
+  cout << " / " << (org->gnome)->nodes.size() << ")";
+  cout << "   ";
+  if (org->mut_struct_baby)
+    cout << " [struct]";
+  if (org->mate_baby)
+    cout << " [mate]";
+  cout << endl;
+#endif
+
+  return false;
+  // TODO @incomplete: what is a winner
+  //
+  // if ((!(thecart->generalization_test)) && (!(thecart->nmarkov_long)))
+  //   if (org->pop_champ_child) {
+  //     cout << org->gnome << endl;
+  //     //DEBUG CHECK
+  //     if (org->high_fit > org->fitness) {
+  //       cout << "ALERT: ORGANISM DAMAGED" << endl;
+  //       print_Genome_tofile(org->gnome, "failure_champ_genome");
+  //       cin >> pause;
+  //     }
+  //   }
+  //
+  // //Decide if its a winner, in Markov Case
+  // if (thecart->MARKOV) {
+  //   if (org->fitness >= (thecart->maxFitness - 1)) {
+  //     org->winner = true;
+  //     return true;
+  //   } else {
+  //     org->winner = false;
+  //     return false;
+  //   }
+  // }
+  //   //if doing the long test non-markov
+  // else if (thecart->nmarkov_long) {
+  //   if (org->fitness >= 99999) {
+  //     //if (org->fitness>=9000) {
+  //     org->winner = true;
+  //     return true;
+  //   } else {
+  //     org->winner = false;
+  //     return false;
+  //   }
+  // } else if (thecart->generalization_test) {
+  //   if (org->fitness >= 999) {
+  //     org->winner = true;
+  //     return true;
+  //   } else {
+  //     org->winner = false;
+  //     return false;
+  //   }
+  // } else {
+  //   org->winner = false;
+  //   return false;  //Winners not decided here in non-Markov
+  // }
 }

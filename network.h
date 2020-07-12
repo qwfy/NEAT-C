@@ -103,7 +103,7 @@ public:
 
   // Takes an array of sensor values and loads it into SENSOR inputs ONLY
   void load_sensors(double *);
-  void load_sensors(const std::vector<float> &sensvals);
+  void load_sensors(const std::vector<double> &sensvals);
 
   // Takes and array of output activations and OVERRIDES the outputs' actual
   // activations with these values (for adaptation)
