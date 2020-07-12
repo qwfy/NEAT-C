@@ -18,6 +18,7 @@
 #include "neat.h"
 #include "population.h"
 #include "experiments.h"
+#include "pupper_exp.h"
 using namespace std;
 
 int main(int argc, char *argv[]) {
@@ -45,6 +46,7 @@ int main(int argc, char *argv[]) {
   cout << "2 - 2-pole balancing, velocity info provided" << endl;
   cout << "3 - 2-pole balancing, no velocity info provided (non-markov)" << endl;
   cout << "4 - XOR" << endl;
+  cout << "5 - Pupper" << endl;
   cout << "Number: ";
 
   int choice;
@@ -63,14 +65,19 @@ int main(int argc, char *argv[]) {
   case 4:
     p = xor_test(100);
     break;
+  case 5:
+    p = pupper_simulate(100);
+    break;
   default:
     cerr << "Bad choice" << endl;
     return -1;
   }
 
-  if (p)
+  if (p == nullptr) {
+    return -1;
+  } else {
     delete p;
-
-  return 0;
+    return 0;
+  }
 }
 
