@@ -1,10 +1,13 @@
 #include "experiments.h"
 #include "pupper_exp.h"
 #include "mujoco.h"
+#include "glfw3.h"
 #include <cstring>
 #include <string>
 #include <tuple>
 #include <vector>
+
+#define VIS_EACH
 
 Population *pupper_simulate(int gens) {
   Population *pop = nullptr;
@@ -187,7 +190,7 @@ tuple<bool, double> mujoco_evaluate(Network *net) {
 
   string mj_license_path = "/home/incomplete/.mujoco/mjkey.txt";
   string mj_model_path = "/home/incomplete/ai/pupper/StanfordQuadruped/sim/pupper_mujoco.xml";
-  int max_simulation_steps = 10000;
+  int max_simulation_steps = 100;
 
   mjModel* mj_model;
   mjData* mj_data;
@@ -204,6 +207,33 @@ tuple<bool, double> mujoco_evaluate(Network *net) {
 
   // make data corresponding to mj_model
   mj_data = mj_makeData(mj_model);
+
+#ifdef VIS_EACH
+  // mujoco viewer
+  mjvCamera cam;                      // abstract camera
+  mjvOption opt;                      // visualization options
+  mjvScene scn;                       // abstract scene
+  mjrContext con;                     // custom GPU context
+
+  if (!glfwInit()) {
+    mju_error("Could not initialize GLFW");
+  }
+
+  // create window, make OpenGL context current, request v-sync
+  GLFWwindow* window = glfwCreateWindow(1200, 900, "Demo", nullptr, nullptr);
+  glfwMakeContextCurrent(window);
+  glfwSwapInterval(1);
+
+  // initialize visualization data structures
+  mjv_defaultCamera(&cam);
+  mjv_defaultOption(&opt);
+  mjv_defaultScene(&scn);
+  mjr_defaultContext(&con);
+
+  // create scene and context
+  mjv_makeScene(mj_model, &scn, 2000);
+  mjr_makeContext(mj_model, &con, mjFONTSCALE_150);
+#endif
 
   // run the simulation
   int cur_step = 0;
@@ -263,7 +293,22 @@ tuple<bool, double> mujoco_evaluate(Network *net) {
 
     mj_step(mj_model, mj_data);
 
+#ifdef VIS_EACH
+    // get framebuffer viewport
+    mjrRect viewport = {0, 0, 0, 0};
+    glfwGetFramebufferSize(window, &viewport.width, &viewport.height);
 
+    // update scene and render
+    mjv_updateScene(mj_model, mj_data, &opt, nullptr, &cam, mjCAT_ALL, &scn);
+    mjr_render(viewport, &scn, &con);
+
+    // swap OpenGL buffers (blocking call due to v-sync)
+    glfwSwapBuffers(window);
+
+    // process pending GUI events, call GLFW callbacks
+    glfwPollEvents();
+#endif
+    
     cur_step += 1;
   }
 
@@ -275,6 +320,12 @@ tuple<bool, double> mujoco_evaluate(Network *net) {
   mj_deleteModel(mj_model);
   mj_deactivate();
 
+#ifdef VIS_EACH
+  //free visualization storage
+  mjv_freeScene(&scn);
+  mjr_freeContext(&con);
+#endif
+  
   return tuple(true, fitness);
 }
 
