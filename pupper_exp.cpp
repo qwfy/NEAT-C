@@ -8,7 +8,7 @@
 #include <vector>
 #include <cmath>
 
-// #define VIS_EACH
+#define VIS_EACH
 
 Population *pupper_simulate(int gens) {
   Population *pop = nullptr;
@@ -51,6 +51,31 @@ Population *pupper_simulate(int gens) {
   start_genome = new Genome(id, input_file);
   input_file.close();
 
+  int mj_error_size = 1024;
+  char mj_error[mj_error_size];
+
+  string mj_license_path = "/home/incomplete/.mujoco/mjkey.txt";
+  string mj_model_path = "/home/incomplete/ai/pupper/StanfordQuadruped/sim/pupper_mujoco.xml";
+
+  // activate MuJoCo
+  mj_activate(mj_license_path.c_str());
+
+  // load model from file and check for errors
+  mjModel *mj_model = mj_loadXML(mj_model_path.c_str(), nullptr, mj_error, mj_error_size);
+  if (!mj_model) {
+    cerr << "Failed to load mujoco mj_model " << mj_model_path << ": " << mj_error << endl;
+    return nullptr;
+  }
+
+  // make data corresponding to mj_model
+  mjData *mj_data = mj_makeData(mj_model);
+
+  MjVis *mj_vis = nullptr;
+#ifdef VIS_EACH
+  mj_vis = new MjVis(mj_model, mj_data);
+#endif
+
+
   for (run_count = 0; run_count < NEAT::num_runs; run_count++) {
     // Spawn the Population
     cout << "Spawning Population off Genome" << endl;
@@ -64,11 +89,13 @@ Population *pupper_simulate(int gens) {
       cout << "Generation " << gen << endl;
 
       file_name_buf = new ostringstream();
-      (*file_name_buf) << "pupper_out/gen_" << gen << ends;\
+      (*file_name_buf) << "pupper_out/gen_" << gen << ends;
       string filename = file_name_buf->str();
 
       // Check for success
-      if (pupper_generation(pop, gen, filename.c_str(), winner_num, winner_genes, winner_nodes)) {
+      if (pupper_generation(
+            pop, mj_model, mj_data, mj_vis,
+            gen, filename.c_str(), winner_num, winner_genes, winner_nodes)) {
         // Collect Stats on end of experiment
         evals[run_count] = NEAT::pop_size*(gen - 1) + winner_num;
         genes[run_count] = winner_genes;
@@ -114,11 +141,21 @@ Population *pupper_simulate(int gens) {
   cout << "Average Genes: " << (samples > 0 ? (double) total_genes/samples : 0) << endl;
   cout << "Average Evals: " << (samples > 0 ? (double) total_evals/samples : 0) << endl;
 
+  // free mj_model and data, deactivate
+  mj_deleteData(mj_data);
+  mj_deleteModel(mj_model);
+  mj_deactivate();
+#ifdef VIS_EACH
+  delete mj_vis;
+#endif
+
   return pop;
 }
 
 // Step a generation
-int pupper_generation(Population *pop, int generation, const char *filename, int &winner_num, int &winner_genes, int &winner_nodes) {
+int pupper_generation(
+    Population *pop, mjModel *mj_model, mjData *mj_data, MjVis *mj_vis,
+    int generation, const char *filename, int &winner_num, int &winner_genes, int &winner_nodes) {
   vector<Organism *>::iterator cur_org;
   vector<Species *>::iterator cur_species;
 
@@ -126,7 +163,7 @@ int pupper_generation(Population *pop, int generation, const char *filename, int
 
   // Evaluate each organism on a test
   for (cur_org = (pop->organisms).begin(); cur_org!=(pop->organisms).end(); ++cur_org) {
-    if (pupper_evaluate(*cur_org)) {
+    if (pupper_evaluate(*cur_org, mj_model, mj_data, mj_vis)) {
       win = true;
       winner_num = (*cur_org)->gnome->genome_id;
       winner_genes = (*cur_org)->gnome->extrons();
@@ -181,60 +218,12 @@ int pupper_generation(Population *pop, int generation, const char *filename, int
 
 }
 
+tuple<bool, double> mujoco_evaluate(Network *net, mjModel *mj_model, mjData *mj_data, MjVis *mj_vis) {
+  mj_resetData(mj_model, mj_data);
 
-tuple<bool, double> mujoco_evaluate(Network *net) {
-  // negative
   float fitness = 0.0;
 
-  int error_size = 1024;
-  char error[error_size];
-
-  string mj_license_path = "/home/incomplete/.mujoco/mjkey.txt";
-  string mj_model_path = "/home/incomplete/ai/pupper/StanfordQuadruped/sim/pupper_mujoco.xml";
-  int max_simulation_steps = 100;
-
-  mjModel* mj_model;
-  mjData* mj_data;
-
-  // activate MuJoCo
-  mj_activate(mj_license_path.c_str());
-
-  // load model from file and check for errors
-  mj_model = mj_loadXML(mj_model_path.c_str(), nullptr, error, error_size);
-  if (!mj_model) {
-    cerr << "Failed to load mujoco mj_model " << mj_model_path << ": " << error << endl;
-    return tuple(false, fitness);
-  }
-
-  // make data corresponding to mj_model
-  mj_data = mj_makeData(mj_model);
-
-#ifdef VIS_EACH
-  // mujoco viewer
-  mjvCamera cam;                      // abstract camera
-  mjvOption opt;                      // visualization options
-  mjvScene scn;                       // abstract scene
-  mjrContext con;                     // custom GPU context
-
-  if (!glfwInit()) {
-    mju_error("Could not initialize GLFW");
-  }
-
-  // create window, make OpenGL context current, request v-sync
-  GLFWwindow* window = glfwCreateWindow(1200, 900, "Demo", nullptr, nullptr);
-  glfwMakeContextCurrent(window);
-  glfwSwapInterval(1);
-
-  // initialize visualization data structures
-  mjv_defaultCamera(&cam);
-  mjv_defaultOption(&opt);
-  mjv_defaultScene(&scn);
-  mjr_defaultContext(&con);
-
-  // create scene and context
-  mjv_makeScene(mj_model, &scn, 2000);
-  mjr_makeContext(mj_model, &con, mjFONTSCALE_150);
-#endif
+  int max_simulation_steps = 10000;
 
   // run the simulation
   int cur_step = 0;
@@ -295,19 +284,7 @@ tuple<bool, double> mujoco_evaluate(Network *net) {
     mj_step(mj_model, mj_data);
 
 #ifdef VIS_EACH
-    // get framebuffer viewport
-    mjrRect viewport = {0, 0, 0, 0};
-    glfwGetFramebufferSize(window, &viewport.width, &viewport.height);
-
-    // update scene and render
-    mjv_updateScene(mj_model, mj_data, &opt, nullptr, &cam, mjCAT_ALL, &scn);
-    mjr_render(viewport, &scn, &con);
-
-    // swap OpenGL buffers (blocking call due to v-sync)
-    glfwSwapBuffers(window);
-
-    // process pending GUI events, call GLFW callbacks
-    glfwPollEvents();
+    mj_vis->draw();
 #endif
     
     cur_step += 1;
@@ -316,26 +293,15 @@ tuple<bool, double> mujoco_evaluate(Network *net) {
   // TODO @incomplete: add straightness, speed and orientation to fitness
   fitness = pow(mj_data->qpos[0], 2) + pow(mj_data->qpos[1], 2);
   fitness = sqrt(fitness);
-
-  // free mj_model and data, deactivate
-  mj_deleteData(mj_data);
-  mj_deleteModel(mj_model);
-  mj_deactivate();
-
-#ifdef VIS_EACH
-  //free visualization storage
-  mjv_freeScene(&scn);
-  mjr_freeContext(&con);
-#endif
   
   return tuple(true, fitness);
 }
 
-bool pupper_evaluate(Organism *org) {
+bool pupper_evaluate(Organism *org, mjModel *mj_model, mjData *mj_data, MjVis *mj_vis) {
   Network *net = org->net;
 
   // evaluate with mujoco
-  auto eval_result = mujoco_evaluate(net);
+  auto eval_result = mujoco_evaluate(net, mj_model, mj_data, mj_vis);
   if (get<0>(eval_result)) {
     org->fitness = get<1>(eval_result);
   } else {
@@ -405,4 +371,51 @@ bool pupper_evaluate(Organism *org) {
   //   org->winner = false;
   //   return false;  //Winners not decided here in non-Markov
   // }
+}
+
+MjVis::MjVis(mjModel *mj_model, mjData *mj_data) {
+
+  this->mj_model = mj_model;
+  this->mj_data = mj_data;
+
+  if (!glfwInit()) {
+    mju_error("Could not initialize GLFW");
+  }
+
+  // create window, make OpenGL context current, request v-sync
+  window = glfwCreateWindow(1200, 900, "Demo", nullptr, nullptr);
+  glfwMakeContextCurrent(window);
+  glfwSwapInterval(1);
+
+  // initialize visualization data structures
+  mjv_defaultCamera(&cam);
+  mjv_defaultOption(&opt);
+  mjv_defaultScene(&scn);
+  mjr_defaultContext(&con);
+
+  // create scene and context
+  mjv_makeScene(mj_model, &scn, 2000);
+  mjr_makeContext(mj_model, &con, mjFONTSCALE_150);
+}
+
+MjVis::~MjVis() {
+  //free visualization storage
+  mjv_freeScene(&scn);
+  mjr_freeContext(&con);
+}
+
+void MjVis::draw() {
+  // get framebuffer viewport
+  mjrRect viewport = {0, 0, 0, 0};
+  glfwGetFramebufferSize(window, &viewport.width, &viewport.height);
+
+  // update scene and render
+  mjv_updateScene(mj_model, mj_data, &opt, nullptr, &cam, mjCAT_ALL, &scn);
+  mjr_render(viewport, &scn, &con);
+
+  // swap OpenGL buffers (blocking call due to v-sync)
+  glfwSwapBuffers(window);
+
+  // process pending GUI events, call GLFW callbacks
+  glfwPollEvents();
 }
