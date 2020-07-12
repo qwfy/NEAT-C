@@ -1,6 +1,7 @@
 #include "experiments.h"
 #include "pupper_exp.h"
 #include <cstring>
+#include <string>
 
 Population *pupper_simulate(int gens) {
   Population *pop = nullptr;
@@ -56,19 +57,18 @@ Population *pupper_simulate(int gens) {
     for (gen = 1; gen <= gens; gen++) {
       cout << "Epoch " << gen << endl;
 
-      //This is how to make a custom filename
+      // This is how to make a custom filename
       file_name_buf = new ostringstream();
-      (*file_name_buf) << "gen_" << gen << ends;  //needs end marker
+      (*file_name_buf) << "pupper_out/gen_" << gen << ends;  //needs end marker
 
 #ifndef NO_SCREEN_OUT
       cout << "name of fname: " << file_name_buf->str() << endl;
 #endif
 
-      char temp[50];
-      sprintf(temp, "gen_%d", gen);
+      string filename = file_name_buf->str();
 
       //Check for success
-      if (pupper_epoch(pop, gen, temp, winner_num, winner_genes, winner_nodes)) {
+      if (pupper_epoch(pop, gen, filename.c_str(), winner_num, winner_genes, winner_nodes)) {
         //	if (pupper_epoch(pop,gen,file_name_buf->str(),winner_num,winner_genes,winner_nodes)) {
         //Collect Stats on end of experiment
         evals[exp_count] = NEAT::pop_size*(gen - 1) + winner_num;
@@ -119,7 +119,7 @@ Population *pupper_simulate(int gens) {
 
 }
 
-int pupper_epoch(Population *pop, int generation, char *filename, int &winner_num, int &winner_genes, int &winner_nodes) {
+int pupper_epoch(Population *pop, int generation, const char *filename, int &winner_num, int &winner_genes, int &winner_nodes) {
   vector<Organism *>::iterator cur_org;
   vector<Species *>::iterator cur_species;
 

@@ -340,7 +340,7 @@ bool Population::speciate() {
   return true;
 }
 
-bool Population::print_to_file_by_species(char *filename) {
+bool Population::print_to_file_by_species(const char *filename) {
 
   std::vector<Species *>::iterator curspecies;
 
