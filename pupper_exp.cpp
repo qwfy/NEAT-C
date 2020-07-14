@@ -231,15 +231,19 @@ tuple<bool, double> mujoco_evaluate(Network *net, mjModel *mj_model, mjData *mj_
 
     // collect sensor data and pass them to the network
     vector<double> sensors {};
-    // position
+    // position, dim 19
     for (int i = 0; i < mj_model->nq; i++) {
       sensors.push_back(mj_data->qpos[i]);
     }
-    // velocity
+    // velocity, dim 18
     for (int i = 0; i < mj_model->nv; i++) {
       sensors.push_back(mj_data->qvel[i]);
     }
-    // actuator activation
+    // actuator activation, dim 0
+    // TODO @incomplete: why is this 0?
+    //     if we don't know the activation position,
+    //     then we don't know the current state of the joints,
+    //     then how can we as human decide what to do next?
     for (int i = 0; i < mj_model->na; i++) {
       sensors.push_back(mj_data->act[i]);
     }
@@ -270,6 +274,8 @@ tuple<bool, double> mujoco_evaluate(Network *net, mjModel *mj_model, mjData *mj_
     if (!(net->activate())) {
       return tuple(true, 0.0);
     }
+
+    cout << "output size: " << net->outputs.size() << endl;
 
     for (int i = 0; i < net->outputs.size(); i++) {
       mj_data->ctrl[i] = net->outputs[i]->activation;
