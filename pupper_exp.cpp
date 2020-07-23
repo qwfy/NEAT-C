@@ -226,8 +226,9 @@ tuple<bool, double> mujoco_evaluate(Network *net, mjModel *mj_model, mjData *mj_
   int max_simulation_steps = 10000;
 
   // run the simulation
+  bool failed = false;
   int cur_step = 0;
-  while (cur_step < max_simulation_steps) {
+  while (!failed) {
 
     // collect sensor data and pass them to the network
     vector<double> sensors {};
@@ -255,18 +256,21 @@ tuple<bool, double> mujoco_evaluate(Network *net, mjModel *mj_model, mjData *mj_
       << " nv=" << mj_model->nv
       << " na=" << mj_model->na
       << endl;
-    int i;
-    bool new_line_added = false;
-    for (i = 0; i < sensors.size(); i++) {
-      new_line_added = false;
+    for (int i = 0; i < 7; i++) {
       cout << sensors[i] << "\t";
-      if (i > 0 && i%6 == 0) {
+    }
+    cout << endl;
+    for (int i = 7; i < mj_model->nq; i++) {
+      cout << sensors[i] << "\t";
+      if ((i-7) > 0 && (i-7+1)%3 == 0) {
         cout << endl;
-        new_line_added = true;
       }
     }
-    if (!new_line_added) {
-      cout << endl;
+    for (int i = mj_model->nq; i < mj_model->nq + mj_model->nv; i++) {
+      cout << sensors[i] << "\t";
+      if ((i-mj_model->nq) > 0 && (i-mj_model->nq+1)%3 == 0) {
+        cout << endl;
+      }
     }
 
     // Activate the net
@@ -276,6 +280,7 @@ tuple<bool, double> mujoco_evaluate(Network *net, mjModel *mj_model, mjData *mj_
     }
 
     cout << "output size: " << net->outputs.size() << endl;
+    cout << "control size: " << mj_model->nu << endl;
 
     for (int i = 0; i < net->outputs.size(); i++) {
       mj_data->ctrl[i] = net->outputs[i]->activation;
@@ -294,6 +299,19 @@ tuple<bool, double> mujoco_evaluate(Network *net, mjModel *mj_model, mjData *mj_
 #endif
     
     cur_step += 1;
+
+
+    double rot[4] = {mj_data->qpos[3], mj_data->qpos[4], mj_data->qpos[5], mj_data->qpos[6]};
+    double res[3] = {0, 0, 0};
+    double z[3] = {0, 0, 1};
+    mju_rotVecQuat(res, z, rot);
+    double cosine = mju_dot(res, z, 3) / mju_norm(res, 3);
+
+    if (cosine < mju_sqrt(2) / 2) {
+      cout << "failed rotation = " << rot[0] << " " << rot[1] << " " << rot[2] << " " << rot[3] << endl;
+      cout << "failed direction = " << res[0] << " " << res[1] << " " << res[2] << endl;
+      failed = true;
+    }
   }
 
   // TODO @incomplete: add straightness, speed and orientation to fitness
